@@ -14,20 +14,23 @@
  *   Books: ...
  *   Sensory: ...
  *   Signs: ...
+ *
+ * Timestamps are constructed in the family timezone via fromZonedTime,
+ * so persisted UTC values render correctly back in that TZ on any server.
  */
+import { fromZonedTime } from "date-fns-tz";
 import type { ParsedDay, ParsedEvent } from "./schema";
 
-const TIME_RE = /(\d{1,2}):(\d{2})/;
 const RANGE_RE = /(\d{1,2}:\d{2})\s*(?:down|asleep)\s*;\s*(\d{1,2}:\d{2})\s*(?:up|awake|woke)/i;
-const FEED_RE  = /(\d+(?:\.\d+)?)\s*oz\s*(breast\s*milk|breastmilk|formula|breast|bottle|mixed)/i;
+const FEED_RE_GLOBAL  = /(\d+(?:\.\d+)?)\s*oz\s*(breast\s*milk|breastmilk|formula|breast|bottle|mixed)/gi;
 const DIAPER_RE = /\b(wet|dry|bm|dirty|poop)\b/gi;
 const NURSED_RE = /\bnursed\b/i;
 const SECTION_LABELS = [
   { key: "milestone", re: /^development\s+skills\s+worked\s+on\s*:\s*(.+)$/i },
-  { key: "song", re: /^songs?\s*\/?\s*music\s*:\s*(.+)$/i },
-  { key: "book", re: /^books?\s*:\s*(.+)$/i },
-  { key: "sensory", re: /^sensory\s*:\s*(.+)$/i },
-  { key: "sign", re: /^signs?\s*:\s*(.+)$/i },
+  { key: "song",      re: /^songs?\s*\/?\s*music\s*:\s*(.+)$/i },
+  { key: "book",      re: /^books?\s*:\s*(.+)$/i },
+  { key: "sensory",   re: /^sensory\s*:\s*(.+)$/i },
+  { key: "sign",      re: /^signs?\s*:\s*(.+)$/i },
 ] as const;
 
 const NAP_START_TOKENS = /\b(down|asleep)\b/i;
@@ -35,72 +38,82 @@ const NAP_END_TOKENS   = /\b(up|woke|awake)\b/i;
 const OUTING_TOKENS    = /(walk|park|appointment|appt|library|store|grocery|errand|outing|class|playdate|drive|stroll|blessing\s*box)/i;
 const MED_TOKENS       = /(floradacane|reflux\s*med|gas\s*drops|tylenol|gripe\s*water|probiotic)/i;
 
-/**
- * Infer AM/PM for a 12h "h:mm" string given the previous event's UTC timestamp.
- * Anchored to the day starting at the wake time or 7am if missing. Times
- * monotonically increase; if a parsed time appears earlier than the last
- * accepted time AND adding 12h would still place it within the same waking
- * day window, treat it as PM.
+/** Convert "h:mm" in `tz` on `dateISO` to a UTC Date.
+ *  Tries AM first; if it's earlier than `cursor.lastUtcMs`, tries PM. Picks
+ *  whichever is the next monotonic instant in the day.
  */
-export function inferDateTime(
-  date: Date,
+export function zonedHHMMToUtc(
+  dateISO: string,
   hhmm: string,
+  tz: string,
   cursor: { lastUtcMs: number },
 ): Date {
   const [hStr, mStr] = hhmm.split(":");
   let h = parseInt(hStr, 10);
   const m = parseInt(mStr, 10);
-  if (h === 12) h = 0; // handle "12:30" → 0 then add PM logic below
+  if (h === 12) h = 0;
+  const pad = (n: number) => n.toString().padStart(2, "0");
 
-  // Start by assuming AM
-  const candidateAm = new Date(date);
-  candidateAm.setHours(h, m, 0, 0);
+  const amStr = `${dateISO}T${pad(h)}:${pad(m)}:00`;
+  const pmStr = `${dateISO}T${pad(h + 12)}:${pad(m)}:00`;
+  const am = fromZonedTime(amStr, tz);
+  const pm = fromZonedTime(pmStr, tz);
 
-  const candidatePm = new Date(date);
-  candidatePm.setHours(h + 12, m, 0, 0);
-
-  // Pick whichever is >= cursor (events are monotonic through the day).
-  // Tie-break: pick the closer of the two to the cursor.
   const cursorTime = cursor.lastUtcMs;
-  const amOk = candidateAm.getTime() >= cursorTime;
-  const pmOk = candidatePm.getTime() >= cursorTime;
+  const amOk = am.getTime() >= cursorTime;
+  const pmOk = pm.getTime() >= cursorTime;
   let chosen: Date;
-  if (amOk && !pmOk) chosen = candidateAm;
-  else if (!amOk && pmOk) chosen = candidatePm;
+  if (amOk && !pmOk) chosen = am;
+  else if (!amOk && pmOk) chosen = pm;
   else if (amOk && pmOk) {
-    // Both later than cursor — prefer the smaller delta (likely AM if early morning continuation).
-    chosen = candidateAm.getTime() - cursorTime < candidatePm.getTime() - cursorTime
-      ? candidateAm : candidatePm;
+    chosen = am.getTime() - cursorTime < pm.getTime() - cursorTime ? am : pm;
   } else {
-    // Both earlier than cursor — unusual; fall back to PM to maintain monotonicity if within 24h.
-    chosen = candidatePm.getTime() >= cursorTime ? candidatePm : candidatePm;
+    // Both earlier than cursor — clamp to cursor (preserves monotonicity).
+    chosen = new Date(cursorTime);
   }
   cursor.lastUtcMs = chosen.getTime();
   return chosen;
 }
 
+const CONF_STRUCTURED = 0.95;
+const CONF_PARTIAL = 0.7;
+const CONF_FREEFORM = 0.4;
+
+function dailyConfidence(structured: number, total: number): number {
+  if (total === 0) return 0;
+  const ratio = structured / Math.max(1, total);
+  return Math.max(0.4, Math.min(1, ratio));
+}
+
 export interface HeuristicResult {
-  parsed: ParsedDay;
+  parsed: ParsedDay & { perEventConfidence: number[] };
   unparsedLines: string[];
 }
 
-export function parseHeuristic(raw: string, reportDate: Date): HeuristicResult {
+export function parseHeuristic(raw: string, reportDate: Date, tz = "America/New_York"): HeuristicResult {
+  const dateISO = reportDate.toISOString().slice(0, 10);
   const events: ParsedEvent[] = [];
+  const perEventConfidence: number[] = [];
   const unparsed: string[] = [];
   const flags: string[] = [];
 
-  // Anchor cursor at 6am local for the report date
-  const anchor = new Date(reportDate);
-  anchor.setHours(6, 0, 0, 0);
-  const cursor = { lastUtcMs: anchor.getTime() };
+  // Anchor cursor at 6am in family TZ
+  const anchorUtc = fromZonedTime(`${dateISO}T06:00:00`, tz);
+  const cursor = { lastUtcMs: anchorUtc.getTime() };
 
   let wakeTime: string | null = null;
   let morningFeed: string | null = null;
+  let addedMorningEvent = false;
 
   const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
 
+  const pushEv = (e: ParsedEvent, conf: number) => {
+    events.push(e);
+    perEventConfidence.push(conf);
+  };
+
   for (const line of lines) {
-    // Date header like "5/15" or "5/15/2026" at top — skip; date is supplied externally.
+    // Date header like "5/15" → skip; report date is supplied externally.
     if (/^\d{1,2}\/\d{1,2}(?:\/\d{2,4})?(?:\s*\(.*\))?$/.test(line)) continue;
 
     // Header: (6:30/5oz & nursed) or (7/7:30)
@@ -110,6 +123,24 @@ export function parseHeuristic(raw: string, reportDate: Date): HeuristicResult {
       const parts = inner.split("/");
       wakeTime = parts[0]?.trim() ?? null;
       morningFeed = parts.slice(1).join("/").trim() || null;
+
+      // Emit a morning feed event so it counts in stats. (P1-1 fix)
+      if (wakeTime && /^\d{1,2}:?\d{0,2}$/.test(wakeTime.replace(/\s/g, ""))) {
+        const wt = wakeTime.includes(":") ? wakeTime : `${wakeTime}:00`;
+        const when = zonedHHMMToUtc(dateISO, wt, tz, cursor);
+        let method: "nursed" | "bottle_breastmilk" | "bottle_formula" | "bottle_mixed" | "other" = "nursed";
+        let oz: number | null = null;
+        if (morningFeed) {
+          const ozMatch = morningFeed.match(/(\d+(?:\.\d+)?)\s*oz/i);
+          if (ozMatch) oz = parseFloat(ozMatch[1]);
+          if (/nurs/i.test(morningFeed) && oz) method = "bottle_mixed";
+          else if (/nurs/i.test(morningFeed)) method = "nursed";
+          else if (/formula/i.test(morningFeed)) method = "bottle_formula";
+          else if (oz) method = "bottle_breastmilk";
+        }
+        pushEv({ type: "feed", time: when.toISOString(), method, oz, notes: `morning feed${morningFeed ? `: ${morningFeed}` : ""}` }, CONF_PARTIAL);
+        addedMorningEvent = true;
+      }
       continue;
     }
 
@@ -118,7 +149,7 @@ export function parseHeuristic(raw: string, reportDate: Date): HeuristicResult {
     for (const { key, re } of SECTION_LABELS) {
       const m = line.match(re);
       if (m) {
-        events.push({ type: key as ParsedEvent["type"], description: m[1].trim() } as ParsedEvent);
+        pushEv({ type: key as ParsedEvent["type"], description: m[1].trim() } as ParsedEvent, CONF_STRUCTURED);
         sectioned = true;
         break;
       }
@@ -128,60 +159,63 @@ export function parseHeuristic(raw: string, reportDate: Date): HeuristicResult {
     // Nap range on same line: "8:17 down; 9:03 up"
     const range = line.match(RANGE_RE);
     if (range) {
-      const start = inferDateTime(reportDate, range[1], cursor);
-      const end = inferDateTime(reportDate, range[2], cursor);
+      const start = zonedHHMMToUtc(dateISO, range[1], tz, cursor);
+      const end = zonedHHMMToUtc(dateISO, range[2], tz, cursor);
       const noteMatch = line.replace(RANGE_RE, "").replace(/^[\s;,.]+|[\s;,.]+$/g, "");
-      events.push({
+      pushEv({
         type: "nap",
         start_time: start.toISOString(),
         end_time: end.toISOString(),
         notes: noteMatch || null,
-      });
+      }, CONF_STRUCTURED);
       continue;
     }
 
     // Otherwise, line must start with a time
     const tMatch = line.match(/^(\d{1,2}:\d{2})\s*(.*)$/);
     if (!tMatch) {
-      // Could be a continuation line; flag
       unparsed.push(line);
       continue;
     }
     const time = tMatch[1];
     const rest = tMatch[2].trim();
-    const when = inferDateTime(reportDate, time, cursor);
+    const when = zonedHHMMToUtc(dateISO, time, tz, cursor);
 
     // Bare "down" or "up"
     if (NAP_START_TOKENS.test(rest) && !NAP_END_TOKENS.test(rest)) {
-      events.push({ type: "nap", start_time: when.toISOString(), end_time: null, notes: rest });
+      pushEv({ type: "nap", start_time: when.toISOString(), end_time: null, notes: rest }, CONF_STRUCTURED);
       continue;
     }
     if (NAP_END_TOKENS.test(rest) && !NAP_START_TOKENS.test(rest)) {
       // Attach to most recent open nap
-      const openNap = [...events].reverse().find(e => e.type === "nap" && !("end_time" in e ? e.end_time : null));
-      if (openNap && openNap.type === "nap") {
-        openNap.end_time = when.toISOString();
-        if (rest) openNap.notes = [openNap.notes, rest].filter(Boolean).join(" | ");
+      const idx = [...events].reverse().findIndex(e => e.type === "nap" && !("end_time" in e ? e.end_time : null));
+      const realIdx = idx === -1 ? -1 : events.length - 1 - idx;
+      if (realIdx !== -1 && events[realIdx].type === "nap") {
+        const napEv = events[realIdx] as Extract<ParsedEvent, { type: "nap" }>;
+        napEv.end_time = when.toISOString();
+        if (rest) napEv.notes = [napEv.notes, rest].filter(Boolean).join(" | ");
       } else {
-        events.push({ type: "note", time: when.toISOString(), text: rest });
+        pushEv({ type: "note", time: when.toISOString(), text: rest }, CONF_PARTIAL);
       }
       continue;
     }
 
-    // Feed
-    const feed = rest.match(FEED_RE);
-    if (feed) {
-      const oz = parseFloat(feed[1]);
-      const kind = feed[2].toLowerCase();
-      let method: "bottle_breastmilk" | "bottle_formula" | "bottle_mixed" | "other" = "other";
-      if (/breast\s*milk|breastmilk/.test(kind)) method = "bottle_breastmilk";
-      else if (/formula/.test(kind)) method = "bottle_formula";
-      else if (/mixed/.test(kind)) method = "bottle_mixed";
-      events.push({ type: "feed", time: when.toISOString(), method, oz });
+    // Feed — match ALL "N oz <kind>" occurrences on the line (P1-2 fix).
+    const feedMatches = [...rest.matchAll(FEED_RE_GLOBAL)];
+    if (feedMatches.length > 0) {
+      for (const fm of feedMatches) {
+        const oz = parseFloat(fm[1]);
+        const kind = fm[2].toLowerCase();
+        let method: "bottle_breastmilk" | "bottle_formula" | "bottle_mixed" | "other" = "other";
+        if (/breast\s*milk|breastmilk/.test(kind)) method = "bottle_breastmilk";
+        else if (/formula/.test(kind)) method = "bottle_formula";
+        else if (/mixed/.test(kind)) method = "bottle_mixed";
+        pushEv({ type: "feed", time: when.toISOString(), method, oz }, CONF_STRUCTURED);
+      }
       continue;
     }
     if (NURSED_RE.test(rest)) {
-      events.push({ type: "feed", time: when.toISOString(), method: "nursed", oz: null });
+      pushEv({ type: "feed", time: when.toISOString(), method: "nursed", oz: null }, CONF_STRUCTURED);
       continue;
     }
 
@@ -189,46 +223,42 @@ export function parseHeuristic(raw: string, reportDate: Date): HeuristicResult {
     const dpMatches = rest.match(DIAPER_RE);
     if (dpMatches && !OUTING_TOKENS.test(rest) && !MED_TOKENS.test(rest)) {
       const set = new Set(dpMatches.map(x => x.toLowerCase()));
-      events.push({
+      pushEv({
         type: "diaper",
         time: when.toISOString(),
         wet: set.has("wet"),
         bm: set.has("bm") || set.has("dirty") || set.has("poop"),
         dry: set.has("dry"),
-      });
+      }, CONF_STRUCTURED);
       continue;
     }
 
     // Medication
     if (MED_TOKENS.test(rest)) {
       const mName = rest.match(MED_TOKENS)?.[1] ?? "medication";
-      events.push({ type: "medication", time: when.toISOString(), name: mName, notes: rest });
+      pushEv({ type: "medication", time: when.toISOString(), name: mName, notes: rest }, CONF_STRUCTURED);
       continue;
     }
 
     // Outing
     if (OUTING_TOKENS.test(rest)) {
-      events.push({ type: "outing", time: when.toISOString(), description: rest });
+      pushEv({ type: "outing", time: when.toISOString(), description: rest }, CONF_STRUCTURED);
       continue;
     }
 
-    // Fallback: time-stamped freeform note (still useful, low confidence)
-    events.push({ type: "note", time: when.toISOString(), text: rest });
+    // Fallback: time-stamped freeform note
+    pushEv({ type: "note", time: when.toISOString(), text: rest }, CONF_FREEFORM);
   }
 
-  // Confidence heuristic: ratio of structured events to total parsed lines.
-  const structuredCount = events.filter(e =>
-    e.type === "nap" || e.type === "feed" || e.type === "diaper" || e.type === "outing"
-  ).length;
-  const totalLines = lines.length;
-  const baseConfidence = totalLines === 0 ? 0 : Math.min(1, structuredCount / Math.max(1, totalLines - 5));
-  const confidence = Math.max(0.4, Math.min(1, baseConfidence));
+  const structured = perEventConfidence.filter(c => c >= 0.9).length;
+  const confidence = dailyConfidence(structured, events.length);
 
   if (unparsed.length > 0) flags.push(`unparsed_lines:${unparsed.length}`);
+  if (!addedMorningEvent && wakeTime) flags.push("morning_feed_skipped");
 
   return {
     parsed: {
-      date: reportDate.toISOString().slice(0, 10),
+      date: dateISO,
       wake_time: wakeTime,
       morning_feed: morningFeed,
       events,
@@ -236,6 +266,7 @@ export function parseHeuristic(raw: string, reportDate: Date): HeuristicResult {
       summary: null,
       confidence,
       flags,
+      perEventConfidence,
     },
     unparsedLines: unparsed,
   };

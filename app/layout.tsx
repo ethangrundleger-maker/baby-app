@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   description: "Daily report and stats for James",
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "James-Day" },
-  icons: { icon: "/icons/icon-192.png", apple: "/icons/icon-192.png" },
+  icons: { icon: "/icons/icon-192.png", apple: "/icons/apple-touch-icon-180.png" },
 };
 
 export const viewport: Viewport = {

@@ -1,3 +1,4 @@
+import { fromZonedTime } from "date-fns-tz";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import type { ParsedDay, ParsedEvent } from "./schema";
 
@@ -11,15 +12,27 @@ interface PersistArgs {
   summary: string | null;
   parseModel: string | null;
   replaceExisting: boolean;
+  timezone: string;
 }
 
-function eventRow(e: ParsedEvent, childId: string, reportId: string, parseConfidence: number) {
+const STRUCTURED = 0.95;
+const FREEFORM = 0.5;
+
+function eventRow(
+  e: ParsedEvent,
+  childId: string,
+  reportId: string,
+  evConfidence: number,
+  authorUserId: string | null,
+  footerAnchorUtc: string,
+) {
   const base = {
     child_id: childId,
     report_id: reportId,
     type: e.type,
-    confidence: parseConfidence,
-    flagged_for_review: parseConfidence < 0.6,
+    confidence: evConfidence,
+    flagged_for_review: evConfidence < 0.6,
+    created_by_user_id: authorUserId,
   };
   switch (e.type) {
     case "nap":
@@ -36,22 +49,23 @@ function eventRow(e: ParsedEvent, childId: string, reportId: string, parseConfid
     case "medication":
       return { ...base, occurred_at: e.time, med_name: e.name, med_dose: e.dose ?? null, notes: e.notes ?? null };
     case "note":
-      return { ...base, occurred_at: e.time ?? new Date().toISOString(), notes: e.text };
+      return { ...base, occurred_at: e.time ?? footerAnchorUtc, notes: e.text };
     case "milestone":
     case "song":
     case "book":
     case "sensory":
     case "sign":
     case "mood":
-      return { ...base, occurred_at: new Date().toISOString(), notes: "description" in e ? e.description : null };
+      // Footer events: stamp at end-of-day in family TZ so they belong to the
+      // correct day in the timeline (P0-3 fix).
+      return { ...base, occurred_at: footerAnchorUtc, notes: "description" in e ? e.description : null };
     default:
-      return { ...base, occurred_at: new Date().toISOString() };
+      return { ...base, occurred_at: footerAnchorUtc };
   }
 }
 
 export async function persistParsedDay(args: PersistArgs) {
   const db = supabaseAdmin();
-  // Upsert daily_report — one per (child, day). If exists, optionally wipe events for that report.
   const { data: existing } = await db
     .from("daily_reports")
     .select("id")
@@ -62,6 +76,8 @@ export async function persistParsedDay(args: PersistArgs) {
   let reportId: string;
   if (existing) {
     if (args.replaceExisting) {
+      // Only delete parsed events tied to this report — preserve any manual
+      // edits, even if added by parents later (P1-4 partial fix).
       await db.from("events").delete().eq("report_id", existing.id);
     }
     const { data: updated, error } = await db
@@ -98,8 +114,17 @@ export async function persistParsedDay(args: PersistArgs) {
     reportId = inserted.id;
   }
 
-  // Insert events
-  const rows = args.parsed.events.map(e => eventRow(e, args.childId, reportId, args.parsed.confidence));
+  // Anchor for footer events: 8pm local on the report date, in family TZ.
+  const footerAnchorUtc = fromZonedTime(`${args.parsed.date}T20:00:00`, args.timezone).toISOString();
+
+  const perEv = args.parsed.perEventConfidence ?? [];
+  const rows = args.parsed.events.map((e, i) => {
+    // Per-event confidence falls back to a typed default if Claude didn't supply.
+    const conf = typeof perEv[i] === "number"
+      ? perEv[i]
+      : (e.type === "note" ? FREEFORM : STRUCTURED);
+    return eventRow(e, args.childId, reportId, conf, args.authorUserId, footerAnchorUtc);
+  });
   if (rows.length > 0) {
     const { error } = await db.from("events").insert(rows);
     if (error) throw error;

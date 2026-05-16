@@ -16,7 +16,7 @@ export async function parseDailyReport(opts: ParseOptions): Promise<{
   source: "heuristic" | "claude" | "claude_fallback";
   summary: string | null;
 }> {
-  const heuristic = parseHeuristic(opts.raw, opts.reportDate);
+  const heuristic = parseHeuristic(opts.raw, opts.reportDate, opts.timezone);
   let parsed: ParsedDay = heuristic.parsed;
   let source: "heuristic" | "claude" | "claude_fallback" = "heuristic";
 

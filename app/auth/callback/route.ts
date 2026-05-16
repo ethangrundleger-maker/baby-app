@@ -18,8 +18,9 @@ export async function GET(req: Request) {
   const { data: { user } } = await supa.auth.getUser();
   if (!user) return NextResponse.redirect(new URL("/login", url.origin));
 
-  // Join family if invite provided + not already a member
-  if (invite) {
+  // Join family if invite provided + not already a member.
+  // Refuse the placeholder invite to prevent accidental open access (P1-6).
+  if (invite && invite !== "changeme") {
     const admin = supabaseAdmin();
     const { data: fam } = await admin.from("families").select("id").eq("invite_code", invite).maybeSingle();
     if (fam) {
@@ -27,6 +28,8 @@ export async function GET(req: Request) {
         family_id: fam.id, user_id: user.id, display_name: name, role,
       }, { onConflict: "family_id,user_id" });
     }
+  } else if (invite === "changeme") {
+    return NextResponse.redirect(new URL("/login?error=invite_is_placeholder", url.origin));
   }
   return NextResponse.redirect(new URL("/today", url.origin));
 }

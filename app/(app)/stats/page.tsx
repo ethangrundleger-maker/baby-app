@@ -1,8 +1,8 @@
 import { getCurrentChild, getCurrentFamily } from "@/lib/auth";
 import { getRecentDays } from "@/lib/queries";
 import { statsByDay } from "@/lib/stats";
-import { StatsCharts } from "@/components/charts/StatsCharts";
 import { ageInMonths } from "@/lib/dev-norms";
+import { StatsCharts } from "@/components/charts/StatsCharts";
 
 export const dynamic = "force-dynamic";
 

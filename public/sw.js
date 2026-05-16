@@ -1,6 +1,10 @@
-/* James-Day service worker — app-shell cache + web push */
-const CACHE = "james-day-v1";
-const APP_SHELL = ["/", "/today", "/paste", "/stats", "/history", "/manifest.webmanifest"];
+/* James-Day service worker — static cache + web push.
+ * NOTE: We deliberately do NOT cache navigations (HTML responses) because they
+ * include authenticated content; serving a stale page to a different signed-in
+ * user would leak data on shared devices. Static assets only.
+ */
+const CACHE = "james-day-v2";
+const APP_SHELL = ["/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then(c => c.addAll(APP_SHELL)).catch(() => undefined));
@@ -18,22 +22,18 @@ self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
-  // Network-first for API, cache-first for static assets, stale-while-revalidate for pages
-  if (url.pathname.startsWith("/api/")) return; // pass through
-  if (req.mode === "navigate") {
-    event.respondWith(
-      fetch(req).then(res => {
-        const copy = res.clone();
-        caches.open(CACHE).then(c => c.put(req, copy)).catch(() => undefined);
-        return res;
-      }).catch(() => caches.match(req).then(r => r || caches.match("/today")))
-    );
-    return;
-  }
+
+  // Pass through API + navigation requests (auth-sensitive); cache-first only
+  // for static same-origin assets.
+  if (url.pathname.startsWith("/api/")) return;
+  if (req.mode === "navigate") return;
+
   event.respondWith(
     caches.match(req).then(cached => cached || fetch(req).then(res => {
-      const copy = res.clone();
-      caches.open(CACHE).then(c => c.put(req, copy)).catch(() => undefined);
+      if (res.ok && url.origin === self.location.origin) {
+        const copy = res.clone();
+        caches.open(CACHE).then(c => c.put(req, copy)).catch(() => undefined);
+      }
       return res;
     }).catch(() => cached))
   );

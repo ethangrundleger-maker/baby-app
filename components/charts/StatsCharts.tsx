@@ -19,7 +19,7 @@ export function StatsCharts({ days }: { days: DayStats[] }) {
             <LineChart data={days} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
               <CartesianGrid stroke="#22305a" />
               <XAxis dataKey="date" tick={{ fill: "#8893c4", fontSize: 11 }} />
-              <YAxis tick={{ fill: "#8893c4", fontSize: 11 }} domain={[0, 6]} />
+              <YAxis tick={{ fill: "#8893c4", fontSize: 11 }} domain={[0, "dataMax + 1"]} />
               <Tooltip contentStyle={{ background: "#121833", border: "1px solid #1a2247" }} />
               <ReferenceArea y1={napTotal.min} y2={napTotal.max} fill="#7aa2ff" fillOpacity={0.08} />
               <Line type="monotone" dataKey="sleepHours" stroke="#8a7bff" strokeWidth={2} dot={false} />

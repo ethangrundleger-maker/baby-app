@@ -11,7 +11,7 @@ export default async function HistoryDayPage({ params }: { params: Promise<{ dat
   const child = await getCurrentChild();
   if (!fam || !child) return <div className="py-8 text-muted">No family/child found.</div>;
   const tz = fam.family.timezone;
-  const { events, report } = await getDayEvents(child.id, date);
+  const { events, report } = await getDayEvents(child.id, date, tz);
 
   return (
     <div className="pt-2 pb-24 space-y-4">

@@ -78,5 +78,6 @@ export const ParsedDay = z.object({
   summary: z.string().nullable().optional(),
   confidence: z.number().min(0).max(1),
   flags: z.array(z.string()).default([]),
+  perEventConfidence: z.array(z.number()).optional(),
 });
 export type ParsedDay = z.infer<typeof ParsedDay>;

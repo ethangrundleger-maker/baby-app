@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireUser, getCurrentFamily } from "@/lib/auth";
-import { Bell } from "lucide-react";
+import { Settings } from "lucide-react";
 import { EnablePushButton } from "@/components/enable-push-button";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -17,7 +17,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <div className="flex items-center gap-2">
           <EnablePushButton />
           <Link href="/settings" aria-label="Settings"
-            className="rounded-full p-2 bg-surface text-ink"><Bell size={20} /></Link>
+            className="inline-flex items-center justify-center rounded-full min-h-11 min-w-11 bg-surface text-ink"
+          ><Settings size={20} /></Link>
         </div>
       </header>
       <main className="px-4">{children}</main>
@@ -32,7 +33,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             { href: "/history", label: "History" },
           ].map((t) => (
             <li key={t.href}>
-              <Link href={t.href} className="block py-3 px-4 text-sm">{t.label}</Link>
+              <Link href={t.href} role="button"
+                className="inline-flex items-center justify-center min-h-12 px-5 text-sm">
+                {t.label}
+              </Link>
             </li>
           ))}
         </ul>

@@ -15,7 +15,7 @@ export default async function TodayPage() {
   const tz = fam.family.timezone;
   const todayISO = fmtDateISO(new Date(), tz);
   const [{ events, report }, last] = await Promise.all([
-    getDayEvents(child.id, todayISO),
+    getDayEvents(child.id, todayISO, tz),
     getLastNapAndFeed(child.id),
   ]);
 

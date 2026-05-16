@@ -1,18 +1,17 @@
+import { fromZonedTime } from "date-fns-tz";
 import { supabaseServer } from "./supabase/server";
 import type { DBEvent, DBDailyReport } from "./supabase/types";
 
-export async function getDayEvents(childId: string, dateISO: string) {
+export async function getDayEvents(childId: string, dateISO: string, tz: string) {
   const supa = await supabaseServer();
-  // Day window in family TZ — start of day to start of next day. We store UTC.
-  // We approximate the window by report_date matching + small overlap window for events whose UTC date drifts.
-  // Simpler: get events for the report, plus 4am-next-day overlap.
-  const start = new Date(`${dateISO}T00:00:00`);
-  const end = new Date(start); end.setDate(end.getDate() + 1);
+  // Day window in family TZ → UTC. (P0-2 fix.)
+  const startUtc = fromZonedTime(`${dateISO}T00:00:00`, tz);
+  const endUtc = new Date(startUtc.getTime() + 24 * 60 * 60 * 1000);
   const { data: events } = await supa
     .from("events").select("*")
     .eq("child_id", childId)
-    .gte("occurred_at", start.toISOString())
-    .lt("occurred_at", end.toISOString())
+    .gte("occurred_at", startUtc.toISOString())
+    .lt("occurred_at", endUtc.toISOString())
     .order("occurred_at", { ascending: true });
   const { data: report } = await supa
     .from("daily_reports").select("*")

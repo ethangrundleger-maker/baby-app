@@ -18,8 +18,9 @@ export async function POST(req: Request) {
   if (!body.success) return NextResponse.json({ error: "bad_request" }, { status: 400 });
 
   const { data: membership } = await supa
-    .from("family_members").select("family_id").eq("user_id", user.id).limit(1).maybeSingle();
+    .from("family_members").select("family_id, role").eq("user_id", user.id).limit(1).maybeSingle();
   if (!membership) return NextResponse.json({ error: "no_family" }, { status: 403 });
+  if (membership.role === "viewer") return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   const result = await sendPushToFamily(membership.family_id, body.data);
   return NextResponse.json(result);
