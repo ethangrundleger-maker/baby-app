@@ -28,9 +28,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <ul className="flex justify-around">
           {[
             { href: "/today", label: "Today" },
-            { href: "/paste", label: "Paste" },
             { href: "/stats", label: "Stats" },
-            { href: "/history", label: "History" },
           ].map((t) => (
             <li key={t.href}>
               <Link href={t.href} role="button"

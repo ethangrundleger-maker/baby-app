@@ -17,6 +17,8 @@ const TYPE_META: Record<string, { label: string; cls: string; emoji: string }> =
   handoff_note: { label: "Handoff", cls: "border-accent/40 bg-accent/10", emoji: "🤝" },
 };
 
+const FOOTER_TYPES = new Set(["song", "book", "sensory", "sign", "milestone", "mood"]);
+
 function describeEvent(e: DBEvent): string {
   switch (e.type) {
     case "nap": {
@@ -35,60 +37,66 @@ function describeEvent(e: DBEvent): string {
   }
 }
 
-export function Timeline({ events, timezone }: { events: DBEvent[]; timezone: string }) {
-  if (events.length === 0) {
+export function TimelineEvents({ events, timezone }: { events: DBEvent[]; timezone: string }) {
+  const timeline = events.filter(e => !FOOTER_TYPES.has(e.type));
+  if (timeline.length === 0) {
     return (
       <div className="rounded-xl bg-surface p-6 text-center text-muted shadow-card">
-        No events yet for this day. Paste a report from the Paste tab.
+        No events yet for this day. Add one below.
       </div>
     );
   }
-  // Group consecutive footer-style events
-  const footerTypes = new Set(["song", "book", "sensory", "sign", "milestone", "mood"]);
-  const timeline = events.filter(e => !footerTypes.has(e.type));
-  const footers = events.filter(e => footerTypes.has(e.type));
+  return (
+    <ol className="space-y-2" aria-label="Day timeline">
+      {timeline.map((e) => {
+        const meta = TYPE_META[e.type] ?? TYPE_META.note;
+        return (
+          <li key={e.id} className={`flex gap-3 items-start rounded-xl border px-3 py-2 ${meta.cls}`}>
+            <span className="w-16 shrink-0 text-sm tabular-nums text-muted pt-1">
+              {fmtTime(e.occurred_at, timezone)}
+            </span>
+            <span aria-hidden className="text-xl leading-7">{meta.emoji}</span>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm">
+                <span className="font-medium">{meta.label}</span>{" "}
+                <span className="text-ink/90">{describeEvent(e)}</span>
+              </div>
+              {e.flagged_for_review && (
+                <p className="text-xs text-warn mt-1">⚠ Flagged for review (low parser confidence)</p>
+              )}
+            </div>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
 
+export function ActivitiesFooter({ events }: { events: DBEvent[] }) {
+  const footers = events.filter(e => FOOTER_TYPES.has(e.type));
+  if (footers.length === 0) return null;
+  return (
+    <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      {footers.map((e) => {
+        const meta = TYPE_META[e.type] ?? TYPE_META.note;
+        return (
+          <li key={e.id} className={`rounded-xl border px-3 py-2 text-sm ${meta.cls}`}>
+            <span aria-hidden className="mr-2">{meta.emoji}</span>
+            <span className="font-medium">{meta.label}:</span>{" "}
+            <span className="text-ink/90">{e.notes ?? "—"}</span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+// Back-compat wrapper for any callers still importing { Timeline }.
+export function Timeline({ events, timezone }: { events: DBEvent[]; timezone: string }) {
   return (
     <div className="space-y-2">
-      <ol className="space-y-2" aria-label="Day timeline">
-        {timeline.map((e) => {
-          const meta = TYPE_META[e.type] ?? TYPE_META.note;
-          return (
-            <li key={e.id} className={`flex gap-3 items-start rounded-xl border px-3 py-2 ${meta.cls}`}>
-              <span className="w-16 shrink-0 text-sm tabular-nums text-muted pt-1">
-                {fmtTime(e.occurred_at, timezone)}
-              </span>
-              <span aria-hidden className="text-xl leading-7">{meta.emoji}</span>
-              <div className="min-w-0 flex-1">
-                <div className="text-sm">
-                  <span className="font-medium">{meta.label}</span>{" "}
-                  <span className="text-ink/90">{describeEvent(e)}</span>
-                </div>
-                {e.flagged_for_review && (
-                  <p className="text-xs text-warn mt-1">⚠ Flagged for review (low parser confidence)</p>
-                )}
-              </div>
-            </li>
-          );
-        })}
-      </ol>
-      {footers.length > 0 && (
-        <section aria-label="Activities" className="mt-4">
-          <h3 className="text-xs uppercase tracking-widest text-muted mb-2">Activities & development</h3>
-          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {footers.map((e) => {
-              const meta = TYPE_META[e.type] ?? TYPE_META.note;
-              return (
-                <li key={e.id} className={`rounded-xl border px-3 py-2 text-sm ${meta.cls}`}>
-                  <span aria-hidden className="mr-2">{meta.emoji}</span>
-                  <span className="font-medium">{meta.label}:</span>{" "}
-                  <span className="text-ink/90">{e.notes ?? "—"}</span>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      )}
+      <TimelineEvents events={events} timezone={timezone} />
+      <ActivitiesFooter events={events} />
     </div>
   );
 }

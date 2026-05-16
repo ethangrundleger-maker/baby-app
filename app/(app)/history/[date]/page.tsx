@@ -1,8 +1,9 @@
 import { getCurrentChild, getCurrentFamily } from "@/lib/auth";
 import { getDayEvents } from "@/lib/queries";
-import { Timeline } from "@/components/timeline/Timeline";
+import { TimelineEvents, ActivitiesFooter } from "@/components/timeline/Timeline";
 import { DayNav } from "@/components/day-nav";
 import { AddEventForm } from "@/components/add-event-form";
+import { AddActivityForm } from "@/components/add-activity-form";
 import { fmtDate, fmtDateISO } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -36,8 +37,13 @@ export default async function HistoryDayPage({ params }: { params: Promise<{ dat
           <pre className="mt-2 text-xs whitespace-pre-wrap text-ink">{report.raw_text}</pre>
         </details>
       )}
-      <Timeline events={events} timezone={tz} />
+      <TimelineEvents events={events} timezone={tz} />
       <AddEventForm childId={child.id} dateISO={date} />
+      <section aria-label="Activities & development">
+        <h3 className="text-sm font-medium text-muted mb-2">Activities &amp; development</h3>
+        <ActivitiesFooter events={events} />
+      </section>
+      <AddActivityForm childId={child.id} dateISO={date} />
     </div>
   );
 }

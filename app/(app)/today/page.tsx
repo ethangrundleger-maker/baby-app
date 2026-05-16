@@ -1,9 +1,10 @@
 import { getCurrentChild, getCurrentFamily } from "@/lib/auth";
 import { getDayEvents, getLastNapAndFeed } from "@/lib/queries";
 import { HeroCards } from "@/components/hero-cards";
-import { Timeline } from "@/components/timeline/Timeline";
+import { TimelineEvents, ActivitiesFooter } from "@/components/timeline/Timeline";
 import { DayNav } from "@/components/day-nav";
 import { AddEventForm } from "@/components/add-event-form";
+import { AddActivityForm } from "@/components/add-activity-form";
 import { fmtDate, fmtDateISO } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -46,10 +47,17 @@ export default async function TodayPage() {
 
       <section aria-label="Timeline">
         <h3 className="text-sm font-medium text-muted mb-2">Timeline</h3>
-        <Timeline events={events} timezone={tz} />
+        <TimelineEvents events={events} timezone={tz} />
       </section>
 
       <AddEventForm childId={child.id} dateISO={todayISO} />
+
+      <section aria-label="Activities & development">
+        <h3 className="text-sm font-medium text-muted mb-2">Activities &amp; development</h3>
+        <ActivitiesFooter events={events} />
+      </section>
+
+      <AddActivityForm childId={child.id} dateISO={todayISO} />
     </div>
   );
 }

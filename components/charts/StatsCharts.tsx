@@ -1,5 +1,5 @@
 "use client";
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, ReferenceArea, BarChart, Bar, CartesianGrid, Legend } from "recharts";
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, ReferenceArea, CartesianGrid, Legend } from "recharts";
 import type { DayStats } from "@/lib/stats";
 import { DEV_NORMS } from "@/lib/dev-norms";
 
@@ -58,15 +58,15 @@ export function StatsCharts({ days }: { days: DayStats[] }) {
         <p className="text-xs text-muted mb-2">≥ {DEV_NORMS.wet_diapers_per_day_min} wet diapers/day is the hydration floor.</p>
         <div style={{ width: "100%", height: 200 }}>
           <ResponsiveContainer>
-            <BarChart data={days} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+            <LineChart data={days} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
               <CartesianGrid stroke="#22305a" />
               <XAxis dataKey="date" tick={{ fill: "#8893c4", fontSize: 11 }} />
-              <YAxis tick={{ fill: "#8893c4", fontSize: 11 }} />
+              <YAxis tick={{ fill: "#8893c4", fontSize: 11 }} domain={[0, "dataMax + 1"]} />
               <Tooltip contentStyle={{ background: "#121833", border: "1px solid #1a2247" }} />
               <Legend wrapperStyle={{ color: "#8893c4" }} />
-              <Bar dataKey="wetDiapers" fill="#fbbf24" />
-              <Bar dataKey="bmDiapers" fill="#22d3ee" />
-            </BarChart>
+              <Line type="monotone" dataKey="wetDiapers" name="Wet" stroke="#fbbf24" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="bmDiapers" name="BM" stroke="#22d3ee" strokeWidth={2} dot={false} />
+            </LineChart>
           </ResponsiveContainer>
         </div>
       </section>
