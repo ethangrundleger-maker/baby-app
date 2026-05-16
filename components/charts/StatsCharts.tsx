@@ -40,15 +40,15 @@ export function StatsCharts({ days }: { days: DayStats[] }) {
         <p className="text-xs text-muted mb-2">Typical: {DEV_NORMS.feeds_per_day.min}–{DEV_NORMS.feeds_per_day.max} feeds, {DEV_NORMS.ounces_per_day_total.min}–{DEV_NORMS.ounces_per_day_total.max} oz milk total.</p>
         <div style={{ width: "100%", height: 220 }}>
           <ResponsiveContainer>
-            <BarChart data={days} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+            <LineChart data={days} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
               <CartesianGrid stroke="#22305a" />
               <XAxis dataKey="date" tick={{ fill: "#8893c4", fontSize: 11 }} />
-              <YAxis tick={{ fill: "#8893c4", fontSize: 11 }} />
+              <YAxis tick={{ fill: "#8893c4", fontSize: 11 }} domain={[0, "dataMax + 2"]} />
               <Tooltip contentStyle={{ background: "#121833", border: "1px solid #1a2247" }} />
               <Legend wrapperStyle={{ color: "#8893c4" }} />
-              <Bar dataKey="feeds" fill="#34d399" />
-              <Bar dataKey="oz" fill="#7aa2ff" />
-            </BarChart>
+              <Line type="monotone" dataKey="feeds" name="Feeds" stroke="#34d399" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="oz" name="Ounces" stroke="#7aa2ff" strokeWidth={2} dot={false} />
+            </LineChart>
           </ResponsiveContainer>
         </div>
       </section>
@@ -71,9 +71,9 @@ export function StatsCharts({ days }: { days: DayStats[] }) {
         </div>
       </section>
 
-      <section aria-label="Longest wake window">
-        <h3 className="text-sm font-medium mb-2">Longest wake window (min)</h3>
-        <p className="text-xs text-muted mb-2">Typical wake window for 5–6mo: {DEV_NORMS.wake_window_minutes.min}–{DEV_NORMS.wake_window_minutes.max} min.</p>
+      <section aria-label="Wake windows">
+        <h3 className="text-sm font-medium mb-2">Wake window (min)</h3>
+        <p className="text-xs text-muted mb-2">Typical wake window for 5–6mo: {DEV_NORMS.wake_window_minutes.min}–{DEV_NORMS.wake_window_minutes.max} min. Showing average and longest each day.</p>
         <div style={{ width: "100%", height: 200 }}>
           <ResponsiveContainer>
             <LineChart data={days} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
@@ -81,8 +81,10 @@ export function StatsCharts({ days }: { days: DayStats[] }) {
               <XAxis dataKey="date" tick={{ fill: "#8893c4", fontSize: 11 }} />
               <YAxis tick={{ fill: "#8893c4", fontSize: 11 }} />
               <Tooltip contentStyle={{ background: "#121833", border: "1px solid #1a2247" }} />
+              <Legend wrapperStyle={{ color: "#8893c4" }} />
               <ReferenceArea y1={DEV_NORMS.wake_window_minutes.min} y2={DEV_NORMS.wake_window_minutes.max} fill="#7aa2ff" fillOpacity={0.08} />
-              <Line type="monotone" dataKey="longestWakeMin" stroke="#f97373" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="avgWakeMin" name="Avg" stroke="#34d399" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="longestWakeMin" name="Longest" stroke="#f97373" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>

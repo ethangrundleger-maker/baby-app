@@ -87,14 +87,15 @@ export default function PasteForm({ childId, todayISO, defaultSource }: Props) {
           placeholder="e.g. He was a bit fussy after the second nap — extra burping helped."
           className="mt-1 w-full rounded-lg bg-surface px-3 py-3 text-ink shadow-card text-sm" />
       </label>
-      <div className="flex gap-3">
-        <button type="submit" disabled={status==="previewing"}
-          className="rounded-lg bg-surface px-4 py-3 text-ink shadow-card disabled:opacity-50">
-          {status === "previewing" ? "Parsing…" : "Preview parse"}
-        </button>
+      <div className="flex flex-col gap-2">
         <button type="button" onClick={save} disabled={status==="saving"}
           className="rounded-lg bg-accent text-black font-semibold px-4 py-3 disabled:opacity-50">
-          {status === "saving" ? "Saving…" : preview ? "Save report" : "Parse + save"}
+          {status === "saving" ? "Saving…" : "Save report"}
+        </button>
+        <p className="text-xs text-muted">Parses the notes, saves events to the day, and sends a push to family.</p>
+        <button type="submit" disabled={status==="previewing"}
+          className="self-start text-xs text-muted underline underline-offset-2 disabled:opacity-50">
+          {status === "previewing" ? "Parsing…" : "Preview only (don't save)"}
         </button>
       </div>
       {errMsg && <p role="alert" className="text-warn text-sm">{errMsg}</p>}

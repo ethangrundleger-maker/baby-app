@@ -21,7 +21,7 @@ function describeEvent(e: DBEvent): string {
   switch (e.type) {
     case "nap": {
       const dur = e.ended_at ? fmtDuration(new Date(e.ended_at).getTime() - new Date(e.occurred_at).getTime()) : "still down";
-      return `Nap · ${dur}${e.notes ? ` — ${e.notes}` : ""}`;
+      return `${dur}${e.notes ? ` — ${e.notes}` : ""}`;
     }
     case "feed":
       return e.feed_method === "nursed"

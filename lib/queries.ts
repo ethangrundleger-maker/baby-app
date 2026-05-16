@@ -21,17 +21,15 @@ export async function getDayEvents(childId: string, dateISO: string, tz: string)
 
 export async function getLastNapAndFeed(childId: string) {
   const supa = await supabaseServer();
-  const [{ data: lastNap }, { data: lastFeed }, { data: lastDiaper }, { data: lastMed }] = await Promise.all([
+  const [{ data: lastNap }, { data: lastFeed }, { data: lastDiaper }] = await Promise.all([
     supa.from("events").select("*").eq("child_id", childId).eq("type", "nap").order("occurred_at", { ascending: false }).limit(1).maybeSingle(),
     supa.from("events").select("*").eq("child_id", childId).eq("type", "feed").order("occurred_at", { ascending: false }).limit(1).maybeSingle(),
     supa.from("events").select("*").eq("child_id", childId).eq("type", "diaper").order("occurred_at", { ascending: false }).limit(1).maybeSingle(),
-    supa.from("events").select("*").eq("child_id", childId).eq("type", "medication").order("occurred_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
   return {
     lastNap: lastNap as DBEvent | null,
     lastFeed: lastFeed as DBEvent | null,
     lastDiaper: lastDiaper as DBEvent | null,
-    lastMed: lastMed as DBEvent | null,
   };
 }
 

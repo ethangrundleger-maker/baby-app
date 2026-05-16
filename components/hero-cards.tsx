@@ -29,10 +29,10 @@ function feedWindowStatus(lastFeedAt: string | null) {
 }
 
 export function HeroCards({
-  lastNap, lastFeed, lastDiaper, lastMed, timezone,
+  lastNap, lastFeed, lastDiaper, timezone,
 }: {
   lastNap: DBEvent | null; lastFeed: DBEvent | null;
-  lastDiaper: DBEvent | null; lastMed: DBEvent | null; timezone: string;
+  lastDiaper: DBEvent | null; timezone: string;
 }) {
   const napStatus = wakeWindowStatus(lastNap?.ended_at ?? null);
   const feedStatus = feedWindowStatus(lastFeed?.occurred_at ?? null);
@@ -85,8 +85,8 @@ export function HeroCards({
         )}
       </div>
 
-      {/* Last diaper + last med (smaller) */}
-      <div className="rounded-2xl bg-surface p-4 shadow-card border border-diaper/10">
+      {/* Last diaper */}
+      <div className="rounded-2xl bg-surface p-4 shadow-card border border-diaper/10 sm:col-span-2">
         <h3 className="text-xs uppercase tracking-widest text-diaper">Last diaper</h3>
         {lastDiaper ? (
           <p className="mt-1">
@@ -96,15 +96,6 @@ export function HeroCards({
             </span>
           </p>
         ) : <p className="text-muted text-sm mt-1">None today.</p>}
-      </div>
-      <div className="rounded-2xl bg-surface p-4 shadow-card border border-outing/10">
-        <h3 className="text-xs uppercase tracking-widest text-outing">Last medication</h3>
-        {lastMed ? (
-          <p className="mt-1">
-            <span className="text-xl font-semibold">{fmtTime(lastMed.occurred_at, timezone)}</span>{" "}
-            <span className="text-muted text-sm">{lastMed.med_name}{lastMed.med_dose ? ` · ${lastMed.med_dose}` : ""}</span>
-          </p>
-        ) : <p className="text-muted text-sm mt-1">None logged.</p>}
       </div>
     </section>
   );
