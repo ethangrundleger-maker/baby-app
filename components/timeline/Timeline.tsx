@@ -74,7 +74,9 @@ export function TimelineEvents({ events, timezone }: { events: DBEvent[]; timezo
 
 export function ActivitiesFooter({ events }: { events: DBEvent[] }) {
   const footers = events.filter(e => FOOTER_TYPES.has(e.type));
-  if (footers.length === 0) return null;
+  if (footers.length === 0) {
+    return <p className="text-sm text-muted">No activities logged yet.</p>;
+  }
   return (
     <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
       {footers.map((e) => {

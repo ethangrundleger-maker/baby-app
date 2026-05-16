@@ -15,10 +15,10 @@ const Body = z.object({
     "mood", "note",
   ]),
   // YYYY-MM-DD in family TZ — the day this event belongs to.
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  date: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/),
   // HH:MM 24h in family TZ.
-  time: z.string().regex(/^\d{2}:\d{2}$/),
-  end_time: z.string().regex(/^\d{2}:\d{2}$/).nullable().optional(),
+  time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+  end_time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable().optional(),
   feed_method: FeedMethod.nullable().optional(),
   feed_oz: z.number().min(0).max(20).nullable().optional(),
   diaper_wet: z.boolean().nullable().optional(),

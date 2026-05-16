@@ -2,7 +2,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
-type Kind = "feed" | "diaper" | "nap" | "medication" | "note";
+type Kind = "feed" | "diaper" | "nap" | "medication" | "outing" | "note";
 type BottleMilk = "bottle_breastmilk" | "bottle_formula" | "bottle_mixed";
 type FeedKind = "bottle" | "nursed" | "solids";
 
@@ -42,6 +42,10 @@ export function AddEventForm({ childId, dateISO }: Props) {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (kind === "nap" && endTime && endTime <= time) {
+      setErr("Nap end time must be after the start time.");
+      return;
+    }
     setBusy(true); setErr(""); setOkFlash(false);
 
     const payload: Record<string, unknown> = {
@@ -80,6 +84,7 @@ export function AddEventForm({ childId, dateISO }: Props) {
       if (!res.ok) throw new Error(j.error || "save failed");
 
       setNotes(""); setFeedOz(""); setMedName(""); setMedDose(""); setEndTime("");
+      setWet(true); setBm(false);
       setTime(nowHHMM());
       setOkFlash(true);
       // router.refresh() refetches the RSC; wrap in a transition so React
@@ -98,6 +103,7 @@ export function AddEventForm({ childId, dateISO }: Props) {
     { v: "diaper", label: "Diaper", emoji: "🧷" },
     { v: "nap", label: "Nap", emoji: "😴" },
     { v: "medication", label: "Med", emoji: "💊" },
+    { v: "outing", label: "Outing", emoji: "🚶" },
     { v: "note", label: "Note", emoji: "📝" },
   ];
 
@@ -112,7 +118,7 @@ export function AddEventForm({ childId, dateISO }: Props) {
             key={k.v}
             type="button"
             onClick={() => setKind(k.v)}
-            className={`rounded-lg px-3 py-2 text-sm shadow-card ${kind === k.v ? "bg-accent text-black font-semibold" : "bg-surface text-ink"}`}
+            className={`min-h-11 rounded-lg px-3 py-2 text-sm shadow-card ${kind === k.v ? "bg-accent text-black font-semibold" : "bg-surface text-ink"}`}
           >
             <span aria-hidden className="mr-1">{k.emoji}</span>{k.label}
           </button>
@@ -139,7 +145,7 @@ export function AddEventForm({ childId, dateISO }: Props) {
             <div className="flex gap-2">
               {(["bottle", "nursed", "solids"] as FeedKind[]).map((fk) => (
                 <button key={fk} type="button" onClick={() => setFeedKind(fk)}
-                  className={`flex-1 rounded-lg px-3 py-2 text-sm shadow-card ${feedKind === fk ? "bg-accent/80 text-black font-semibold" : "bg-surface text-ink"}`}>
+                  className={`flex-1 min-h-11 rounded-lg px-3 py-2 text-sm shadow-card ${feedKind === fk ? "bg-accent/80 text-black font-semibold" : "bg-surface text-ink"}`}>
                   {fk === "bottle" ? "Bottle" : fk === "nursed" ? "Nursed" : "Solids"}
                 </button>
               ))}
@@ -164,7 +170,7 @@ export function AddEventForm({ childId, dateISO }: Props) {
                       className="flex-1 rounded-lg bg-surface px-3 py-2 text-ink shadow-card" />
                     {ozPresets.map((n) => (
                       <button key={n} type="button" onClick={() => setFeedOz(String(n))}
-                        className="rounded-lg bg-surface px-3 py-2 text-sm shadow-card">
+                        className="min-h-11 min-w-11 rounded-lg bg-surface px-3 py-2 text-sm shadow-card">
                         {n}
                       </button>
                     ))}

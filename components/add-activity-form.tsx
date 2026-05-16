@@ -66,7 +66,7 @@ export function AddActivityForm({ childId, dateISO }: Props) {
       <div className="flex gap-2 mb-3 flex-wrap">
         {KINDS.map((k) => (
           <button key={k.v} type="button" onClick={() => setKind(k.v)}
-            className={`rounded-lg px-3 py-2 text-sm shadow-card ${kind === k.v ? "bg-accent text-black font-semibold" : "bg-surface text-ink"}`}>
+            className={`min-h-11 rounded-lg px-3 py-2 text-sm shadow-card ${kind === k.v ? "bg-accent text-black font-semibold" : "bg-surface text-ink"}`}>
             <span aria-hidden className="mr-1">{k.emoji}</span>{k.label}
           </button>
         ))}
