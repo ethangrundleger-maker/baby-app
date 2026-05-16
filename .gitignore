@@ -11,3 +11,7 @@ coverage
 .idea
 .vscode
 .turbo
+
+# Local generated output (combined SQL with real invite codes, etc.).
+# Never commit — contains secrets specific to this household.
+.out/
