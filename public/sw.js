@@ -1,0 +1,65 @@
+/* James-Day service worker — app-shell cache + web push */
+const CACHE = "james-day-v1";
+const APP_SHELL = ["/", "/today", "/paste", "/stats", "/history", "/manifest.webmanifest"];
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(caches.open(CACHE).then(c => c.addAll(APP_SHELL)).catch(() => undefined));
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+  );
+  self.clients.claim();
+});
+
+self.addEventListener("fetch", (event) => {
+  const req = event.request;
+  if (req.method !== "GET") return;
+  const url = new URL(req.url);
+  // Network-first for API, cache-first for static assets, stale-while-revalidate for pages
+  if (url.pathname.startsWith("/api/")) return; // pass through
+  if (req.mode === "navigate") {
+    event.respondWith(
+      fetch(req).then(res => {
+        const copy = res.clone();
+        caches.open(CACHE).then(c => c.put(req, copy)).catch(() => undefined);
+        return res;
+      }).catch(() => caches.match(req).then(r => r || caches.match("/today")))
+    );
+    return;
+  }
+  event.respondWith(
+    caches.match(req).then(cached => cached || fetch(req).then(res => {
+      const copy = res.clone();
+      caches.open(CACHE).then(c => c.put(req, copy)).catch(() => undefined);
+      return res;
+    }).catch(() => cached))
+  );
+});
+
+self.addEventListener("push", (event) => {
+  let payload = { title: "James-Day", body: "New update", url: "/today" };
+  try { if (event.data) payload = { ...payload, ...event.data.json() }; }
+  catch { if (event.data) payload.body = event.data.text(); }
+  event.waitUntil(
+    self.registration.showNotification(payload.title, {
+      body: payload.body,
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      data: { url: payload.url || "/today" },
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || "/today";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(clientList => {
+      for (const c of clientList) { if ("focus" in c) { c.navigate(url); return c.focus(); } }
+      if (self.clients.openWindow) return self.clients.openWindow(url);
+    })
+  );
+});

@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --safe-top: env(safe-area-inset-top);
+  --safe-bottom: env(safe-area-inset-bottom);
+}
+
+html, body { background: #0b1020; color: #e8ecff; }
+body { -webkit-tap-highlight-color: transparent; }
+
+/* Focus ring (a11y) */
+*:focus-visible {
+  outline: 2px solid #7aa2ff;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Hide scrollbars on horizontal scrollers but keep keyboard scroll */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }
+
+button, [role="button"] { min-height: 44px; min-width: 44px; }

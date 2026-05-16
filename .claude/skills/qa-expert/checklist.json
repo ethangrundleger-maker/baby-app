@@ -1,0 +1,92 @@
+{
+  "version": "1.0",
+  "categories": [
+    {
+      "id": "functional",
+      "name": "Functional correctness",
+      "checks": [
+        "Paste → parse → save → display golden path works end-to-end",
+        "Re-pasting the same day is idempotent (no duplicate events)",
+        "Last-nap and last-feed cards reflect the most recent events across all sources",
+        "Time strings without AM/PM are correctly disambiguated for a baby's daytime schedule",
+        "Outings parsed as type=outing, not lost in freeform",
+        "Diaper lines with combined wet/bm attributes are one event with two flags"
+      ]
+    },
+    {
+      "id": "data_integrity",
+      "name": "Data integrity",
+      "checks": [
+        "Timestamps stored as UTC, rendered in family TZ",
+        "DB constraints (NOT NULL, FK, CHECK) match Zod schemas",
+        "JSON event payloads validate on every write",
+        "Migrations are forward-only and idempotent"
+      ]
+    },
+    {
+      "id": "security",
+      "name": "Security (OWASP)",
+      "checks": [
+        "RLS enabled on every user-data table with correct policies",
+        "Service-role key only used server-side",
+        "Anthropic + VAPID keys never bundled to the client",
+        "Parse endpoint requires auth + has a per-user rate limit",
+        "User-pasted text rendered safely (no unsanitized HTML)"
+      ]
+    },
+    {
+      "id": "accessibility",
+      "name": "Accessibility (WCAG 2.2 AA)",
+      "checks": [
+        "Contrast ratios meet AA (4.5:1 body, 3:1 large text and UI)",
+        "All interactive elements keyboard-reachable with visible focus",
+        "Charts have accessible alternative (data table or aria summary)",
+        "Form errors associated via aria-describedby",
+        "Info not conveyed by color alone"
+      ]
+    },
+    {
+      "id": "performance",
+      "name": "Performance",
+      "checks": [
+        "Today route initial JS < 150KB gzipped",
+        "LCP hero card not blocked by chart bundles",
+        "Stats charts code-split off the today route",
+        "Single DB round-trip per page where feasible"
+      ]
+    },
+    {
+      "id": "mobile_pwa",
+      "name": "Mobile + PWA",
+      "checks": [
+        "Manifest valid (name, short_name, 192/512 icons, standalone)",
+        "Service worker installs and caches app shell",
+        "Push subscription works in iOS PWA mode",
+        "Touch targets ≥ 44pt",
+        "Safe-area insets respected"
+      ]
+    },
+    {
+      "id": "error_states",
+      "name": "Error / empty / loading states",
+      "checks": [
+        "Every async surface has loading, error, empty states",
+        "Claude API failure offers retry and a manual-save fallback",
+        "Parser low-confidence events flagged for review",
+        "Offline indicator shown when navigator.onLine is false"
+      ]
+    },
+    {
+      "id": "edge_cases",
+      "name": "App-specific edge cases",
+      "checks": [
+        "Note pasted late at night with events past midnight assigned to correct day",
+        "Overlapping naps surface a warning",
+        "Feed with no oz amount (nursing) counted as a feed but excluded from oz totals",
+        "Historical backfill doesn't corrupt the today view",
+        "DST transition days show 23/25h gracefully, not as a bug",
+        "Concurrent paste from two devices doesn't lose data"
+      ]
+    }
+  ]
+}
