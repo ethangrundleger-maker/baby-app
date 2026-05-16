@@ -9,6 +9,7 @@ export interface DayStats {
   wetDiapers: number;
   bmDiapers: number;
   longestWakeMin: number;
+  avgWakeMin: number;
   napCount: number;
 }
 
@@ -37,16 +38,20 @@ export function statsByDay(events: DBEvent[], tz: string): DayStats[] {
       if (e.type === "diaper") { if (e.diaper_wet) wet++; if (e.diaper_bm) bm++; }
     }
     let longestWakeMin = 0;
+    let wakeSum = 0, wakeCount = 0;
     napStarts.sort((a, b) => a - b); napEnds.sort((a, b) => a - b);
     for (let i = 0; i < napStarts.length - 1; i++) {
       const wake = (napStarts[i + 1] - napEnds[i]) / 60000;
       if (wake > longestWakeMin) longestWakeMin = wake;
+      wakeSum += wake; wakeCount++;
     }
     out.push({
       date,
       sleepHours: +(sleepMs / 3_600_000).toFixed(2),
       feeds, oz: +oz.toFixed(1), wetDiapers: wet, bmDiapers: bm,
-      longestWakeMin: Math.round(longestWakeMin), napCount,
+      longestWakeMin: Math.round(longestWakeMin),
+      avgWakeMin: wakeCount > 0 ? Math.round(wakeSum / wakeCount) : 0,
+      napCount,
     });
   }
   return out;
