@@ -56,8 +56,12 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   // Defense-in-depth: only honor relative same-origin paths from the payload.
+  // Disallow leading "//" (protocol-relative) — clients.openWindow() will
+  // happily open a cross-origin URL otherwise (round-3 P1-1).
   const raw = (event.notification.data && event.notification.data.url) || "/today";
-  const url = (typeof raw === "string" && /^\/[a-zA-Z0-9/_\-?=&%.]*$/.test(raw)) ? raw : "/today";
+  const safe = typeof raw === "string"
+    && /^\/(?:[a-zA-Z0-9_\-.?=&%][a-zA-Z0-9/_\-?=&%.]*)?$/.test(raw);
+  const url = safe ? raw : "/today";
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(clientList => {
       for (const c of clientList) { if ("focus" in c) { c.navigate(url); return c.focus(); } }

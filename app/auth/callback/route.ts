@@ -39,9 +39,13 @@ export async function GET(req: Request) {
     return NextResponse.redirect(new URL("/login?error=invalid_invite", url.origin));
   }
 
+  // Insert membership if the user isn't already a member. We deliberately do
+  // NOT overwrite an existing row: if a parent has their account, a later
+  // click on a nanny invite link must not silently demote them to nanny
+  // (round-3 P3-1).
   await admin.from("family_members").upsert({
     family_id: fam.id, user_id: user.id, display_name: name, role: derivedRole,
-  }, { onConflict: "family_id,user_id" });
+  }, { onConflict: "family_id,user_id", ignoreDuplicates: true });
 
   return NextResponse.redirect(new URL("/today", url.origin));
 }
