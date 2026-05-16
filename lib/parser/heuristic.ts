@@ -124,21 +124,24 @@ export function parseHeuristic(raw: string, reportDate: Date, tz = "America/New_
       wakeTime = parts[0]?.trim() ?? null;
       morningFeed = parts.slice(1).join("/").trim() || null;
 
-      // Emit a morning feed event so it counts in stats. (P1-1 fix)
-      if (wakeTime && /^\d{1,2}:?\d{0,2}$/.test(wakeTime.replace(/\s/g, ""))) {
+      // Emit a morning feed event ONLY when the header's second segment
+      // carries feed semantics (oz, nursed, formula). A bare "(7/7:30)" is a
+      // wake-time-only header and must not produce a phantom feed
+      // (round-2 P2-B).
+      const morningHasFeedSemantics =
+        !!morningFeed && (/\d+(?:\.\d+)?\s*oz/i.test(morningFeed) || /nurs/i.test(morningFeed) || /formula/i.test(morningFeed));
+      if (wakeTime && morningHasFeedSemantics && /^\d{1,2}:?\d{0,2}$/.test(wakeTime.replace(/\s/g, ""))) {
         const wt = wakeTime.includes(":") ? wakeTime : `${wakeTime}:00`;
         const when = zonedHHMMToUtc(dateISO, wt, tz, cursor);
         let method: "nursed" | "bottle_breastmilk" | "bottle_formula" | "bottle_mixed" | "other" = "nursed";
         let oz: number | null = null;
-        if (morningFeed) {
-          const ozMatch = morningFeed.match(/(\d+(?:\.\d+)?)\s*oz/i);
-          if (ozMatch) oz = parseFloat(ozMatch[1]);
-          if (/nurs/i.test(morningFeed) && oz) method = "bottle_mixed";
-          else if (/nurs/i.test(morningFeed)) method = "nursed";
-          else if (/formula/i.test(morningFeed)) method = "bottle_formula";
-          else if (oz) method = "bottle_breastmilk";
-        }
-        pushEv({ type: "feed", time: when.toISOString(), method, oz, notes: `morning feed${morningFeed ? `: ${morningFeed}` : ""}` }, CONF_PARTIAL);
+        const ozMatch = morningFeed!.match(/(\d+(?:\.\d+)?)\s*oz/i);
+        if (ozMatch) oz = parseFloat(ozMatch[1]);
+        if (/nurs/i.test(morningFeed!) && oz) method = "bottle_mixed";
+        else if (/nurs/i.test(morningFeed!)) method = "nursed";
+        else if (/formula/i.test(morningFeed!)) method = "bottle_formula";
+        else if (oz) method = "bottle_breastmilk";
+        pushEv({ type: "feed", time: when.toISOString(), method, oz, notes: `morning feed: ${morningFeed}` }, CONF_PARTIAL);
         addedMorningEvent = true;
       }
       continue;

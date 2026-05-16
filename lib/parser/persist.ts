@@ -50,12 +50,15 @@ function eventRow(
       return { ...base, occurred_at: e.time, med_name: e.name, med_dose: e.dose ?? null, notes: e.notes ?? null };
     case "note":
       return { ...base, occurred_at: e.time ?? footerAnchorUtc, notes: e.text };
+    case "mood":
+      // Mood may carry an explicit time from Claude; preserve it. Fall back to
+      // the footer anchor only if absent (round-2 P3-B).
+      return { ...base, occurred_at: e.time ?? footerAnchorUtc, notes: e.description };
     case "milestone":
     case "song":
     case "book":
     case "sensory":
     case "sign":
-    case "mood":
       // Footer events: stamp at end-of-day in family TZ so they belong to the
       // correct day in the timeline (P0-3 fix).
       return { ...base, occurred_at: footerAnchorUtc, notes: "description" in e ? e.description : null };

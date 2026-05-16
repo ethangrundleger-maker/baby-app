@@ -6,7 +6,8 @@ import { sendPushToFamily } from "@/lib/push";
 const Body = z.object({
   title: z.string().min(1).max(100),
   body: z.string().min(1).max(280),
-  url: z.string().optional(),
+  // Only allow relative same-origin paths — prevents push-driven open-redirect.
+  url: z.string().regex(/^\/[a-zA-Z0-9/_\-?=&%.]*$/).optional(),
 });
 
 export async function POST(req: Request) {

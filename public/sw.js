@@ -55,7 +55,9 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = (event.notification.data && event.notification.data.url) || "/today";
+  // Defense-in-depth: only honor relative same-origin paths from the payload.
+  const raw = (event.notification.data && event.notification.data.url) || "/today";
+  const url = (typeof raw === "string" && /^\/[a-zA-Z0-9/_\-?=&%.]*$/.test(raw)) ? raw : "/today";
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(clientList => {
       for (const c of clientList) { if ("focus" in c) { c.navigate(url); return c.focus(); } }

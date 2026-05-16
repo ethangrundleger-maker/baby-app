@@ -6,7 +6,6 @@ export default function LoginForm() {
   const [email, setEmail] = useState("");
   const [inviteCode, setInviteCode] = useState("");
   const [displayName, setDisplayName] = useState("");
-  const [role, setRole] = useState<"parent" | "nanny" | "viewer">("parent");
   const [status, setStatus] = useState<"idle"|"sending"|"sent"|"error">("idle");
   const [errMsg, setErrMsg] = useState("");
 
@@ -17,7 +16,7 @@ export default function LoginForm() {
     const { error } = await supa.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback?invite=${encodeURIComponent(inviteCode)}&name=${encodeURIComponent(displayName)}&role=${role}`,
+        emailRedirectTo: `${window.location.origin}/auth/callback?invite=${encodeURIComponent(inviteCode)}&name=${encodeURIComponent(displayName)}`,
       },
     });
     if (error) { setStatus("error"); setErrMsg(error.message); return; }
@@ -46,19 +45,12 @@ export default function LoginForm() {
           className="mt-1 w-full rounded-lg bg-surface px-3 py-3 text-ink shadow-card" />
       </label>
       <label className="block">
-        <span className="text-sm text-muted">Role</span>
-        <select value={role} onChange={(e) => setRole(e.target.value as "parent" | "nanny" | "viewer")}
-          className="mt-1 w-full rounded-lg bg-surface px-3 py-3 text-ink shadow-card">
-          <option value="parent">Parent</option>
-          <option value="nanny">Nanny</option>
-          <option value="viewer">Viewer</option>
-        </select>
-      </label>
-      <label className="block">
         <span className="text-sm text-muted">Family invite code</span>
         <input required value={inviteCode} onChange={(e) => setInviteCode(e.target.value)}
           className="mt-1 w-full rounded-lg bg-surface px-3 py-3 text-ink shadow-card" />
-        <span className="text-xs text-muted mt-1 block">From the parents — the value of FAMILY_INVITE_CODE.</span>
+        <span className="text-xs text-muted mt-1 block">
+          Parents and the nanny use different codes — the household will share the right one with you.
+        </span>
       </label>
       <button disabled={status==="sending"} type="submit"
         className="w-full rounded-lg bg-accent text-black font-semibold py-3 disabled:opacity-50">

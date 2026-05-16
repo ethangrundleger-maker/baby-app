@@ -19,12 +19,13 @@ const Body = z.object({
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 8;
 
-/** Durable per-user rate limit via Supabase (P1-3 fix). */
+/** Durable per-user rate limit via Supabase. Prune is scoped to the caller
+ *  so concurrent requests don't fight for the same DELETE (round-2 P1-B). */
 async function rateLimit(userId: string, kind: string): Promise<boolean> {
   const db = supabaseAdmin();
   const cutoff = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString();
-  // Prune old + count current
-  await db.from("rate_events").delete().lt("created_at", cutoff);
+  await db.from("rate_events").delete()
+    .eq("user_id", userId).eq("kind", kind).lt("created_at", cutoff);
   const { count } = await db
     .from("rate_events")
     .select("*", { count: "exact", head: true })
@@ -54,12 +55,21 @@ export async function POST(req: Request) {
     .eq("user_id", user.id).limit(1).maybeSingle();
   if (!membership) return NextResponse.json({ error: "no_family" }, { status: 403 });
 
+  // Resolve the target child and enforce that it belongs to the caller's
+  // family. Without this check, any authenticated user could write events to
+  // another family's child by passing its UUID (round-2 P0-A).
   let childId: string | undefined = parsed.data.child_id;
   if (!childId) {
     const { data: child } = await supa
       .from("children").select("id").eq("family_id", membership.family_id).limit(1).maybeSingle();
     if (!child) return NextResponse.json({ error: "no_child" }, { status: 400 });
     childId = child.id as string;
+  } else {
+    const { data: child } = await supa
+      .from("children").select("id, family_id").eq("id", childId).maybeSingle();
+    if (!child || child.family_id !== membership.family_id) {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    }
   }
   if (!childId) return NextResponse.json({ error: "no_child" }, { status: 400 });
 
