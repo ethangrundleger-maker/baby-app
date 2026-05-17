@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 import { DEV_NORMS, ageInMonths } from "@/lib/dev-norms";
 import SignOutButton from "./SignOutButton";
 import AdminPanel from "./AdminPanel";
+import JoinFamilyForm from "./JoinFamilyForm";
 
 export const dynamic = "force-dynamic";
 
@@ -46,7 +47,10 @@ export default async function SettingsPage() {
             )}
           </>
         ) : <p className="text-muted text-sm">Not signed in.</p>}
-        <div className="mt-3"><SignOutButton /></div>
+        <div className="mt-3 space-y-3">
+          {fam && <JoinFamilyForm defaultName={fam.display_name} />}
+          <SignOutButton />
+        </div>
       </section>
 
       {admin && <AdminPanel families={allFamilies} children={allChildren} />}
