@@ -52,14 +52,22 @@ export default async function TodayPage() {
         <TimelineEvents events={events} timezone={tz} />
       </section>
 
-      <AddEventForm childId={child.id} dateISO={todayISO} timezone={tz} />
+      {fam.role !== "viewer" ? (
+        <AddEventForm childId={child.id} dateISO={todayISO} timezone={tz} />
+      ) : (
+        <section className="rounded-xl bg-surface2 p-4 text-sm text-muted">
+          View-only — switch to your own baby in the top-right to log entries.
+        </section>
+      )}
 
       <section aria-label="Activities & development">
         <h3 className="text-sm font-medium text-muted mb-2">Activities &amp; development</h3>
         <ActivitiesFooter events={events} />
       </section>
 
-      <AddActivityForm childId={child.id} dateISO={todayISO} timezone={tz} />
+      {fam.role !== "viewer" && (
+        <AddActivityForm childId={child.id} dateISO={todayISO} timezone={tz} />
+      )}
     </div>
   );
 }

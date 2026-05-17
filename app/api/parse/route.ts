@@ -6,6 +6,7 @@ import { persistParsedDay } from "@/lib/parser/persist";
 import { supabaseServer, supabaseAdmin } from "@/lib/supabase/server";
 import { MODEL_EXTRACT } from "@/lib/anthropic/client";
 import { sendPushToFamily } from "@/lib/push";
+import { getCurrentChild } from "@/lib/auth";
 
 const Body = z.object({
   raw: z.string().min(1).max(20000),
@@ -49,31 +50,37 @@ export async function POST(req: Request) {
 
   const { raw, report_date, source, preview, replace_existing } = parsed.data;
 
+  // Resolve target child: if the request didn't specify one, use whichever
+  // baby is currently selected via the cookie. Then verify membership in
+  // that child's family — works correctly for users in multiple families.
+  let childId = parsed.data.child_id;
+  if (!childId) {
+    const current = await getCurrentChild();
+    if (!current) return NextResponse.json({ error: "no_child" }, { status: 400 });
+    childId = current.id;
+  }
+
+  const { data: child } = await supa
+    .from("children")
+    .select("id, family_id, families!inner(timezone)")
+    .eq("id", childId)
+    .maybeSingle();
+  if (!child) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  const familyId = (child as { family_id: string }).family_id;
+
   const { data: membership } = await supa
     .from("family_members")
-    .select("family_id, display_name, role, families!inner(timezone)")
-    .eq("user_id", user.id).limit(1).maybeSingle();
-  if (!membership) return NextResponse.json({ error: "no_family" }, { status: 403 });
-
-  // Resolve the target child and enforce that it belongs to the caller's
-  // family. Without this check, any authenticated user could write events to
-  // another family's child by passing its UUID (round-2 P0-A).
-  let childId: string | undefined = parsed.data.child_id;
-  if (!childId) {
-    const { data: child } = await supa
-      .from("children").select("id").eq("family_id", membership.family_id).limit(1).maybeSingle();
-    if (!child) return NextResponse.json({ error: "no_child" }, { status: 400 });
-    childId = child.id as string;
-  } else {
-    const { data: child } = await supa
-      .from("children").select("id, family_id").eq("id", childId).maybeSingle();
-    if (!child || child.family_id !== membership.family_id) {
-      return NextResponse.json({ error: "forbidden" }, { status: 403 });
-    }
+    .select("family_id, display_name, role")
+    .eq("user_id", user.id)
+    .eq("family_id", familyId)
+    .maybeSingle();
+  if (!membership) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  // Preview is read-only; full save (which writes events) requires a writer role.
+  if (!preview && (membership as { role: string }).role === "viewer") {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
-  if (!childId) return NextResponse.json({ error: "no_child" }, { status: 400 });
 
-  const fams = (membership as { families: unknown }).families;
+  const fams = (child as { families: unknown }).families;
   const famObj = Array.isArray(fams) ? fams[0] : fams;
   const timezone = (famObj && typeof famObj === "object" && "timezone" in famObj
     ? (famObj as { timezone: string }).timezone : null) || "America/New_York";
