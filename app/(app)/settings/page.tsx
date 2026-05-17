@@ -1,6 +1,9 @@
-import { getCurrentChild, getCurrentFamily } from "@/lib/auth";
+import { getCurrentChild, getCurrentFamily, getMyMemberships, isAppAdmin } from "@/lib/auth";
+import { supabaseAdmin } from "@/lib/supabase/server";
 import { DEV_NORMS, ageInMonths } from "@/lib/dev-norms";
 import SignOutButton from "./SignOutButton";
+import AdminPanel from "./AdminPanel";
+import JoinFamilyForm from "./JoinFamilyForm";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +11,26 @@ export default async function SettingsPage() {
   const fam = await getCurrentFamily();
   const child = await getCurrentChild();
   const months = ageInMonths();
+  const admin = await isAppAdmin();
+  const memberships = await getMyMemberships();
+
+  // For the admin panel we list ALL families and children — the admin needs
+  // to see other households they manage even if they're not a personal member.
+  let allFamilies: Array<{ id: string; name: string; timezone: string; invite_code: string; nanny_invite_code: string | null }> = [];
+  let allChildren: Array<{ id: string; family_id: string; name: string; dob: string | null }> = [];
+  if (admin) {
+    const db = supabaseAdmin();
+    const { data: fams } = await db
+      .from("families")
+      .select("id, name, timezone, invite_code, nanny_invite_code")
+      .order("created_at", { ascending: true });
+    const { data: kids } = await db
+      .from("children")
+      .select("id, family_id, name, dob")
+      .order("created_at", { ascending: true });
+    allFamilies = fams ?? [];
+    allChildren = kids ?? [];
+  }
 
   return (
     <div className="pt-2 pb-24 space-y-6">
@@ -18,20 +41,28 @@ export default async function SettingsPage() {
         {fam ? (
           <>
             <p className="text-sm">{fam.display_name} <span className="text-muted">· {fam.role}</span></p>
-            <p className="text-xs text-muted">Family TZ: {fam.family.timezone}</p>
+            <p className="text-xs text-muted">Active family: {fam.family.name} · TZ {fam.family.timezone}</p>
+            {memberships.length > 1 && (
+              <p className="text-xs text-muted">Member of {memberships.length} families — switch baby in the top-right.</p>
+            )}
           </>
         ) : <p className="text-muted text-sm">Not signed in.</p>}
-        <div className="mt-3"><SignOutButton /></div>
+        <div className="mt-3 space-y-3">
+          {fam && <JoinFamilyForm defaultName={fam.display_name} />}
+          <SignOutButton />
+        </div>
       </section>
 
+      {admin && <AdminPanel families={allFamilies} children={allChildren} />}
+
       <section aria-label="Child" className="rounded-xl bg-surface p-4 shadow-card">
-        <h3 className="text-sm font-medium mb-2">Child</h3>
+        <h3 className="text-sm font-medium mb-2">Baby</h3>
         {child ? (
           <>
-            <p className="text-sm">{child.name} · {months} months old (DOB {child.dob})</p>
+            <p className="text-sm">{child.name}{child.dob ? ` · ${months} months old (DOB ${child.dob})` : ""}</p>
             {child.notes && <p className="text-xs text-muted mt-1 whitespace-pre-wrap">{child.notes}</p>}
           </>
-        ) : <p className="text-muted text-sm">No child set up.</p>}
+        ) : <p className="text-muted text-sm">No baby set up.</p>}
       </section>
 
       <section aria-label="Developmental context" className="rounded-xl bg-surface p-4 shadow-card">

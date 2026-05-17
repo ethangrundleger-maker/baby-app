@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { supabaseServer } from "@/lib/supabase/server";
+import { getCurrentFamily } from "@/lib/auth";
 
 const Body = z.object({
   endpoint: z.string().url(),
@@ -16,13 +17,15 @@ export async function POST(req: Request) {
   const body = Body.safeParse(await req.json().catch(() => null));
   if (!body.success) return NextResponse.json({ error: "bad_request" }, { status: 400 });
 
-  const { data: membership } = await supa
-    .from("family_members").select("family_id").eq("user_id", user.id).limit(1).maybeSingle();
-  if (!membership) return NextResponse.json({ error: "no_family" }, { status: 403 });
+  // Bind the subscription to the currently-selected family. Multi-family
+  // users (e.g. a nanny) get pushes for whichever baby they're currently
+  // viewing; switching baby + re-subscribing rebinds.
+  const fam = await getCurrentFamily();
+  if (!fam) return NextResponse.json({ error: "no_family" }, { status: 403 });
 
   const { error } = await supa.from("push_subscriptions").upsert({
     user_id: user.id,
-    family_id: membership.family_id,
+    family_id: fam.family_id,
     endpoint: body.data.endpoint,
     p256dh: body.data.keys.p256dh,
     auth: body.data.keys.auth,

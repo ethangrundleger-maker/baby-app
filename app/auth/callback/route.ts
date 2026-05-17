@@ -19,6 +19,12 @@ export async function GET(req: Request) {
   const { data: { user } } = await supa.auth.getUser();
   if (!user) return NextResponse.redirect(new URL("/login", url.origin));
 
+  // Password reset flow: the user clicked the email link; now show the
+  // "set a new password" form. The session is live so updateUser will work.
+  if (url.searchParams.get("reset") === "1") {
+    return NextResponse.redirect(new URL("/auth/set-password", url.origin));
+  }
+
   if (!invite) return NextResponse.redirect(new URL("/today", url.origin));
   if (invite === "changeme") {
     return NextResponse.redirect(new URL("/login?error=invite_is_placeholder", url.origin));

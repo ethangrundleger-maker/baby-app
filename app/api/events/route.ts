@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { fromZonedTime } from "date-fns-tz";
 import { supabaseServer } from "@/lib/supabase/server";
+import { authorizeChildWrite } from "@/lib/auth";
 
 const FeedMethod = z.enum([
   "breast", "bottle_breastmilk", "bottle_formula", "bottle_mixed", "solids", "nursed", "other",
@@ -39,24 +40,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "bad_request", details: body.error.flatten() }, { status: 400 });
   }
 
-  // Family + child scope check (matches parse route's IDOR guard).
-  const { data: membership } = await supa
-    .from("family_members")
-    .select("family_id, role, families!inner(timezone)")
-    .eq("user_id", user.id).limit(1).maybeSingle();
-  if (!membership) return NextResponse.json({ error: "no_family" }, { status: 403 });
-  if (membership.role === "viewer") return NextResponse.json({ error: "forbidden" }, { status: 403 });
-
-  const { data: child } = await supa
-    .from("children").select("id, family_id").eq("id", body.data.child_id).maybeSingle();
-  if (!child || child.family_id !== membership.family_id) {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  }
-
-  const fams = (membership as { families: unknown }).families;
-  const famObj = Array.isArray(fams) ? fams[0] : fams;
-  const tz = (famObj && typeof famObj === "object" && "timezone" in famObj
-    ? (famObj as { timezone: string }).timezone : null) || "America/New_York";
+  // Family + child scope check, derived from the child (multi-family safe).
+  const auth = await authorizeChildWrite(body.data.child_id);
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
+  const { tz } = auth;
 
   // Resolve date+time in family TZ → UTC (fixes auto-refresh / out-of-day-window bug).
   const occurredAt = fromZonedTime(`${body.data.date}T${body.data.time}:00`, tz);
