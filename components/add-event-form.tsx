@@ -1,6 +1,7 @@
 "use client";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { formatInTimeZone } from "date-fns-tz";
 
 type Kind = "feed" | "diaper" | "nap" | "medication" | "outing" | "note";
 type BottleMilk = "bottle_breastmilk" | "bottle_formula" | "bottle_mixed";
@@ -9,18 +10,23 @@ type FeedKind = "bottle" | "nursed" | "solids";
 interface Props {
   childId: string;
   dateISO: string;
+  // When set, the form is in "live today" mode: at submit time it recomputes
+  // the date in this timezone, so a tab open across midnight still writes to
+  // the correct day. Omit on history pages so writes stay on the chosen date.
+  timezone?: string;
 }
 
-function nowHHMM(): string {
+function nowHHMM(tz?: string): string {
   const d = new Date();
+  if (tz) return formatInTimeZone(d, tz, "HH:mm");
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
-export function AddEventForm({ childId, dateISO }: Props) {
+export function AddEventForm({ childId, dateISO, timezone }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [kind, setKind] = useState<Kind>("feed");
-  const [time, setTime] = useState<string>(nowHHMM);
+  const [time, setTime] = useState<string>(() => nowHHMM(timezone));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [okFlash, setOkFlash] = useState(false);
@@ -48,10 +54,14 @@ export function AddEventForm({ childId, dateISO }: Props) {
     }
     setBusy(true); setErr(""); setOkFlash(false);
 
+    // In live-today mode, recompute the date in family TZ at submit time so
+    // a tab open across midnight still books on the current day.
+    const effectiveDate = timezone ? formatInTimeZone(new Date(), timezone, "yyyy-MM-dd") : dateISO;
+
     const payload: Record<string, unknown> = {
       child_id: childId,
       type: kind,
-      date: dateISO,
+      date: effectiveDate,
       time,
       notes: notes || null,
     };
@@ -85,7 +95,7 @@ export function AddEventForm({ childId, dateISO }: Props) {
 
       setNotes(""); setFeedOz(""); setMedName(""); setMedDose(""); setEndTime("");
       setWet(true); setBm(false);
-      setTime(nowHHMM());
+      setTime(nowHHMM(timezone));
       setOkFlash(true);
       // router.refresh() refetches the RSC; wrap in a transition so React
       // shows the new server data without a hard reload.

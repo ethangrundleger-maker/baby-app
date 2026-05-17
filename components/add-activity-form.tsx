@@ -1,12 +1,15 @@
 "use client";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { formatInTimeZone } from "date-fns-tz";
 
 type ActivityKind = "song" | "book" | "sensory" | "sign" | "milestone" | "mood";
 
 interface Props {
   childId: string;
   dateISO: string;
+  // When set, submit recomputes the date in this TZ — see AddEventForm.
+  timezone?: string;
 }
 
 const KINDS: { v: ActivityKind; label: string; emoji: string; placeholder: string }[] = [
@@ -18,7 +21,7 @@ const KINDS: { v: ActivityKind; label: string; emoji: string; placeholder: strin
   { v: "mood", label: "Mood", emoji: "🫶", placeholder: "Happy, fussy, content…" },
 ];
 
-export function AddActivityForm({ childId, dateISO }: Props) {
+export function AddActivityForm({ childId, dateISO, timezone }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [kind, setKind] = useState<ActivityKind>("song");
@@ -34,13 +37,14 @@ export function AddActivityForm({ childId, dateISO }: Props) {
     try {
       // 8pm in family TZ is conventional for footer-style entries; we send the
       // day's date plus a 20:00 anchor and let the server resolve to UTC.
+      const effectiveDate = timezone ? formatInTimeZone(new Date(), timezone, "yyyy-MM-dd") : dateISO;
       const res = await fetch("/api/events", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           child_id: childId,
           type: kind,
-          date: dateISO,
+          date: effectiveDate,
           time: "20:00",
           notes: notes.trim(),
         }),

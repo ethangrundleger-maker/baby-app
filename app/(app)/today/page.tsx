@@ -5,6 +5,7 @@ import { TimelineEvents, ActivitiesFooter } from "@/components/timeline/Timeline
 import { DayNav } from "@/components/day-nav";
 import { AddEventForm } from "@/components/add-event-form";
 import { AddActivityForm } from "@/components/add-activity-form";
+import { MidnightRefresh } from "@/components/midnight-refresh";
 import { fmtDate, fmtDateISO } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +25,7 @@ export default async function TodayPage() {
 
   return (
     <div className="space-y-5 pt-2 pb-32">
+      <MidnightRefresh tz={tz} />
       <div>
         <p className="text-xs uppercase tracking-widest text-muted">Today · {child.name}</p>
         <h2 className="text-2xl font-semibold">{fmtDate(new Date(), tz)}</h2>
@@ -50,14 +52,14 @@ export default async function TodayPage() {
         <TimelineEvents events={events} timezone={tz} />
       </section>
 
-      <AddEventForm childId={child.id} dateISO={todayISO} />
+      <AddEventForm childId={child.id} dateISO={todayISO} timezone={tz} />
 
       <section aria-label="Activities & development">
         <h3 className="text-sm font-medium text-muted mb-2">Activities &amp; development</h3>
         <ActivitiesFooter events={events} />
       </section>
 
-      <AddActivityForm childId={child.id} dateISO={todayISO} />
+      <AddActivityForm childId={child.id} dateISO={todayISO} timezone={tz} />
     </div>
   );
 }
