@@ -1,29 +1,25 @@
-import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import { ServiceWorkerRegister } from "@/components/service-worker-register";
+import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "James-Day",
-  description: "Daily report and stats for James",
-  manifest: "/manifest.webmanifest",
-  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "James-Day" },
-  icons: { icon: "/icons/icon-192.png", apple: "/icons/apple-touch-icon-180.png" },
-};
-
-export const viewport: Viewport = {
-  themeColor: "#0b1020",
-  width: "device-width",
-  initialScale: 1,
-  viewportFit: "cover",
+  title: {
+    default: "Re:Fit — Mobile Tailoring & Alterations That Come to You",
+    template: "%s · Re:Fit",
+  },
+  description:
+    "Concierge tailoring on demand. A stylist pins your garments at home — vetted tailors do the work — we return them, ready to wear.",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
+  openGraph: {
+    title: "Re:Fit — The tailor comes to you",
+    description: "Mobile tailoring & alterations. Book a pinning visit or self-pin.",
+    type: "website",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="min-h-screen antialiased">
-        <ServiceWorkerRegister />
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

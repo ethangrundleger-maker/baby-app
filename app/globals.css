@@ -2,24 +2,66 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: dark;
-  --safe-top: env(safe-area-inset-top);
-  --safe-bottom: env(safe-area-inset-bottom);
+@layer base {
+  :root {
+    --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --font-display: ui-serif, Georgia, "Times New Roman", serif;
+  }
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-bg text-ink font-sans;
+    font-feature-settings: "ss01", "cv11";
+  }
+  h1, h2, h3, h4 {
+    @apply font-display tracking-tight;
+  }
+  *:focus-visible {
+    @apply outline-none ring-2 ring-brand-400 ring-offset-2 ring-offset-bg;
+  }
+  ::selection {
+    background: #f1cca0;
+    color: #3a2012;
+  }
 }
 
-html, body { background: #0b1020; color: #e8ecff; }
-body { -webkit-tap-highlight-color: transparent; }
-
-/* Focus ring (a11y) */
-*:focus-visible {
-  outline: 2px solid #7aa2ff;
-  outline-offset: 2px;
-  border-radius: 6px;
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .btn-primary {
+    @apply btn bg-ink text-bg hover:bg-ink-soft;
+  }
+  .btn-brand {
+    @apply btn bg-brand-500 text-white hover:bg-brand-600;
+  }
+  .btn-ghost {
+    @apply btn text-ink hover:bg-bg-alt;
+  }
+  .btn-outline {
+    @apply btn border border-line-strong bg-bg-card text-ink hover:bg-bg-alt;
+  }
+  .card {
+    @apply rounded-lg border border-line bg-bg-card shadow-card;
+  }
+  .input {
+    @apply w-full rounded-md border border-line-strong bg-bg-card px-3.5 py-2.5 text-sm placeholder:text-ink-subtle focus:border-brand-400 focus:ring-2 focus:ring-brand-200 focus:outline-none;
+  }
+  .label {
+    @apply mb-1.5 block text-xs font-medium uppercase tracking-wider text-ink-muted;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-line bg-bg-alt px-2.5 py-1 text-xs font-medium text-ink-soft;
+  }
+  .section {
+    @apply py-16 sm:py-24;
+  }
+  .container-page {
+    @apply mx-auto w-full max-w-page px-5 sm:px-8;
+  }
+  .container-wide {
+    @apply mx-auto w-full max-w-wide px-5 sm:px-8;
+  }
 }
-
-/* Hide scrollbars on horizontal scrollers but keep keyboard scroll */
-.no-scrollbar::-webkit-scrollbar { display: none; }
-.no-scrollbar { scrollbar-width: none; }
-
-button, [role="button"] { min-height: 44px; min-width: 44px; }
