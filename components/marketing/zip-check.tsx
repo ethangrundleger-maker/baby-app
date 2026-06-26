@@ -86,9 +86,16 @@ export function ZipCheck({ compact = false }: { compact?: boolean }) {
         </form>
       )}
       {step === "done" && (
-        <div className="rounded-md bg-success/10 p-4 text-sm text-success">
-          <Check className="mr-2 inline h-4 w-4" />
-          {result?.in_service_area ? "You're in! Continue creating your account." : "You're on the list — we'll text the moment we open up your area."}
+        <div className="space-y-3">
+          <div className="rounded-md bg-success/10 p-4 text-sm text-success">
+            <Check className="mr-2 inline h-4 w-4" />
+            {result?.in_service_area ? "You're in! Let's set up your account." : "You're on the list — we'll text the moment we open up your area."}
+          </div>
+          {result?.in_service_area && (
+            <a href="/app/onboarding" className="block w-full rounded-lg bg-brand-500 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-brand-600 transition-colors">
+              Create account →
+            </a>
+          )}
         </div>
       )}
     </div>
