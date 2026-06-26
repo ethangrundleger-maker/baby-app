@@ -12,7 +12,12 @@ export default function DataModelPage() {
       {/* Header */}
       <header className="border-b border-line bg-bg-card">
         <div className="mx-auto max-w-6xl px-5 py-8 sm:px-8 sm:py-12">
-          <Link href="/" className="text-xs font-medium uppercase tracking-widest text-brand-600 hover:text-brand-700">← Re:Fit</Link>
+          <div className="flex items-center gap-4">
+            <Link href="/" className="text-xs font-medium uppercase tracking-widest text-brand-600 hover:text-brand-700">← Re:Fit</Link>
+            <Link href="/data-model/erd" className="inline-flex items-center gap-1.5 rounded-full border border-brand-300 bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700 hover:bg-brand-100">
+              View ERD diagram →
+            </Link>
+          </div>
           <h1 className="mt-3 font-display text-3xl sm:text-5xl font-semibold tracking-tight">The data model</h1>
           <p className="mt-3 max-w-2xl text-base sm:text-lg text-ink-muted">
             Every table in the Re:Fit database, what it does, and how they relate. {TOTAL_TABLES} tables across {SECTIONS.length} domains — derived directly from <code className="rounded bg-bg-alt px-1.5 py-0.5 text-xs">schema.sql</code>, the single source of truth.
